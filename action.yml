@@ -17,9 +17,6 @@ runs:
       shell: bash
       run: |
         sudo apt-get install -y -q git
-    - name: ensure base hash available
-      uses: 8BitJonny/gh-get-current-pr@2.1.0
-      id: PR
     - name: install golang
       uses: actions/setup-go@v3
       with:
@@ -28,5 +25,5 @@ runs:
       shell: bash
       run: |
         cd $GITHUB_ACTION_PATH
-        go run ./conventionalcommits-checker/ -repo-dir $GITHUB_WORKSPACE/${{ github.repository }} -base-sha ${{ fromJSON(steps.PR.outputs.pr).base.sha }}
+        go run ./conventionalcommits-checker/ -repo-dir $GITHUB_WORKSPACE -base-sha ${{ github.event.pull_request.base.sha }} -head-sha ${{ github.event.pull_request.head.sha }}
 
