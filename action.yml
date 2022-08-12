@@ -1,0 +1,32 @@
+# action.yml
+name: "conventionalcommits-checker"
+author: BLumia
+branding:
+  icon: "check"
+  color: "black"
+description: "check commits insider a Pull Request and see if it matches Conventional Commits guideline"
+inputs:
+  github_token:
+    description: "action github token"
+    required: false
+
+runs:
+  using: "composite"
+  steps:
+    - name: install git
+      shell: bash
+      run: |
+        sudo apt-get install -y -q git
+    - name: ensure base hash available
+      uses: 8BitJonny/gh-get-current-pr@2.1.0
+      id: PR
+    - name: install golang
+      uses: actions/setup-go@v3
+      with:
+        go-version: ^1.19
+    - name: run commitlint
+      shell: bash
+      run: |
+        cd $GITHUB_ACTION_PATH
+        go run ./conventionalcommits-checker/ -repo-dir $GITHUB_WORKSPACE/${{ github.repository }} -base-sha ${{ fromJSON(steps.PR.outputs.pr).base.sha }}
+
