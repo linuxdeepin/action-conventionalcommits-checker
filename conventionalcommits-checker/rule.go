@@ -25,6 +25,7 @@ const (
 	Check_RequireBody             CheckType = 3 // require body (trailers also count as body)
 	Check_RequireTrailers         CheckType = 4 // require given trailer(s)
 	Check_AllowedSubjectPattern   CheckType = 5 // fallback allowed pattern if subject line doesn't meet convetional commit guideline
+	Check_StrictRequireTrailers   CheckType = 6 // strict require given trailer(s), must contain trailer(s) key and value
 )
 
 type Rule struct {
@@ -74,6 +75,14 @@ func (commitCheckData *CommitCheckData) Check(rule Rule) CheckedCommitMessage {
 				Passed:     false,
 				Reason:     "Body is empty",
 				Suggestion: "Body is required, please put some detail description about why this commit is needed",
+			}
+		}
+	case Check_StrictRequireTrailers:
+		if !commitCheckData.TrailersParsed.StrictContains(rule.CheckData) {
+			return CheckedCommitMessage{
+				Passed:     false,
+				Reason:     "Required trailer [" + rule.CheckData + "] or [" + rule.CheckData + "]'s value not found",
+				Suggestion: "You can validate your trailers with `git interpret-trailers`",
 			}
 		}
 	case Check_RequireTrailers:

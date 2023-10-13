@@ -70,3 +70,13 @@ func (data *TrailersData) Contains(key string) bool {
 
 	return false
 }
+
+func (data *TrailersData) StrictContains(key string) bool {
+	for _, trailer := range data.Trailers {
+		if trailer.Key == key && trailer.Value != "" {
+			return true
+		}
+	}
+
+	return false
+}

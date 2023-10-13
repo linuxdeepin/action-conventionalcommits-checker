@@ -32,6 +32,11 @@ func CreateChecker() Checker {
 				CheckType: Check_RequireBody,
 			},
 			{
+				RuleType:  Rule_AlwaysCheck,
+				CheckType: Check_StrictRequireTrailers,
+				CheckData: "Issue",
+			},
+			{
 				RuleType:  Rule_ConditionialCheck,
 				RuleData:  "uniontech.com",
 				CheckType: Check_RequireTrailers,
