@@ -31,11 +31,20 @@ func CreateChecker() Checker {
 				RuleType:  Rule_AlwaysCheck,
 				CheckType: Check_RequireBody,
 			},
-			{
-				RuleType:  Rule_AlwaysCheck,
-				CheckType: Check_StrictRequireTrailers,
-				CheckData: "Issue",
+			/*{
+				RuleType:      Rule_ConditionialCheck,
+				CheckType:     Check_StrictRequireTrailers,
+				ConditionType: Condition_ByType,
+				CheckData:     "Issue",
+				RuleData:      "fix",
 			},
+			{
+				RuleType:      Rule_ConditionialCheck,
+				CheckType:     Check_StrictRequireTrailers,
+				ConditionType: Condition_ByType,
+				CheckData:     "Issue",
+				RuleData:      "feat",
+			},*/
 			{
 				RuleType:  Rule_ConditionialCheck,
 				RuleData:  "uniontech.com",
@@ -233,6 +242,11 @@ func (checker *Checker) checkSingleCommit(commitSha string) CheckedCommitMessage
 		switch rule.ConditionType {
 		case Condition_ByEmail:
 			if strings.Contains(commitCheckData.AuthorEmail, rule.RuleData) {
+				requiredRules.PushBack(rule)
+			}
+		case Condition_ByType:
+			fmt.Println(commitCheckData.SubjectParsed.Type)
+			if strings.Contains(commitCheckData.SubjectParsed.Type, rule.RuleData) {
 				requiredRules.PushBack(rule)
 			}
 		}

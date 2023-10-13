@@ -14,6 +14,7 @@ type ConditionType int
 
 const (
 	Condition_ByEmail ConditionType = 1 // if email matches
+	Condition_ByType  ConditionType = 2 // if scope matches
 )
 
 type CheckType int
