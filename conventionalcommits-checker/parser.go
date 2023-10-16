@@ -31,7 +31,7 @@ func indexAtStringArray(arr []string, idx int) string {
 
 func ParseSubjectLine(subject string) SubjectData {
 	// [skip test]type(scope): description subject line
-	r := regexp.MustCompile(`(?s)(?:\[[\w ]+\])?(?P<type>[\w]+)(?:\((?P<scope>[\w]+)\))?!?: (?P<description>.*)`)
+	r := regexp.MustCompile(`(?s)(?:\[[\w ]+\])?(?P<type>[\w]+)(?:\((?P<scope>\w[\w\/]*)\))?!?: (?P<description>.*)`)
 	matches := r.FindStringSubmatch(subject)
 
 	return SubjectData{
