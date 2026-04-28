@@ -21,9 +21,33 @@ runs:
       uses: actions/setup-go@v3
       with:
         go-version: ^1.19
+    - name: check PR description for AI co-author pattern
+      shell: bash
+      run: |
+        BLOCKED_PATTERN='Co-authored-by:.*ai|Co-authored-by:.*agent|Co-authored-by:.*copilot|Co-authored-by:.*llm|Co-authored-by:.*gpt'
+        PR_BODY="${{ github.event.pull_request.body }}"
+        if echo "${PR_BODY}" | grep -Eiq "${BLOCKED_PATTERN}"; then
+          echo "FAIL: PR description contains blocked co-author AI pattern." >&2
+          echo "Blocked pattern: ${BLOCKED_PATTERN}" >&2
+          echo "Please remove AI-generated co-author lines from PR description." >&2
+          exit 1
+        fi
+        echo "PASS: PR description does not contain blocked AI co-author pattern."
     - name: run commitlint
       shell: bash
       run: |
         cd $GITHUB_ACTION_PATH
         go run ./conventionalcommits-checker/ -repo-dir $GITHUB_WORKSPACE -base-sha ${{ github.event.pull_request.base.sha }} -head-sha ${{ github.event.pull_request.head.sha }}
+    - name: check commit messages for AI co-author pattern
+      shell: bash
+      run: |
+        BLOCKED_PATTERN='Co-authored-by:.*ai|Co-authored-by:.*agent|Co-authored-by:.*copilot|Co-authored-by:.*llm|Co-authored-by:.*gpt'
+        cd $GITHUB_ACTION_PATH
+        COMMIT_MSGS=$(git log --format=%B ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} 2>/dev/null || true)
+        if [[ -n "${COMMIT_MSGS}" ]] && echo "${COMMIT_MSGS}" | grep -Eiq "${BLOCKED_PATTERN}"; then
+          echo "FAIL: Commit messages contain blocked co-author AI pattern." >&2
+          echo "Blocked pattern: ${BLOCKED_PATTERN}" >&2
+          exit 1
+        fi
+        echo "PASS: Commit messages do not contain blocked AI co-author pattern."
 
