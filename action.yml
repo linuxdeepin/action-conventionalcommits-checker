@@ -3,7 +3,7 @@ name: "conventionalcommits-checker"
 author: BLumia
 branding:
   icon: "check"
-  color: "black"
+  color: "gray-dark"
 description: "check commits insider a Pull Request and see if it matches Conventional Commits guideline"
 inputs:
   github_token:
@@ -18,7 +18,7 @@ runs:
       run: |
         sudo apt-get install -y -q git
     - name: install golang
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v6
       with:
         go-version: ^1.19
     - name: run commitlint
