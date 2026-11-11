@@ -48,8 +48,16 @@ func CreateChecker() Checker {
 			{
 				RuleType:  Rule_ConditionialCheck,
 				RuleData:  "uniontech.com",
+				ConditionType: Condition_ByEmail,
 				CheckType: Check_RequireTrailers,
 				CheckData: "Log",
+			},
+			{
+				RuleType:  Rule_ConditionialCheck,
+				RuleData:  "uniontech.com",
+				ConditionType: Condition_ByEmail,
+				CheckType: Check_RequireTrailers,
+				CheckData: "Issue|PMS",
 			},
 			{
 				RuleType:  Rule_FallbackCheck,

@@ -80,3 +80,22 @@ func (data *TrailersData) StrictContains(key string) bool {
 
 	return false
 }
+func (data *TrailersData) ContainsAny(keys []string) bool {
+	for _, key := range keys {
+		if data.Contains(key) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (data *TrailersData) StrictContainsAny(keys []string) bool {
+	for _, key := range keys {
+		if data.StrictContains(key) {
+			return true
+		}
+	}
+
+	return false
+}
