@@ -1,6 +1,9 @@
 package main
 
-import "regexp"
+import (
+	"regexp"
+	"strings"
+)
 
 type RuleType int
 
@@ -79,18 +82,18 @@ func (commitCheckData *CommitCheckData) Check(rule Rule) CheckedCommitMessage {
 			}
 		}
 	case Check_StrictRequireTrailers:
-		if !commitCheckData.TrailersParsed.StrictContains(rule.CheckData) {
+		if !commitCheckData.TrailersParsed.StrictContainsAny(strings.Split(rule.CheckData, "|")) {
 			return CheckedCommitMessage{
 				Passed:     false,
-				Reason:     "Required trailer [" + rule.CheckData + "] or [" + rule.CheckData + "]'s value not found",
+				Reason:     "Required trailer (any of: " + rule.CheckData + ") or its value not found",
 				Suggestion: "You can validate your trailers with `git interpret-trailers`",
 			}
 		}
 	case Check_RequireTrailers:
-		if !commitCheckData.TrailersParsed.Contains(rule.CheckData) {
+		if !commitCheckData.TrailersParsed.ContainsAny(strings.Split(rule.CheckData, "|")) {
 			return CheckedCommitMessage{
 				Passed:     false,
-				Reason:     "Required trailer [" + rule.CheckData + "] not found",
+				Reason:     "Required trailer (any of: " + rule.CheckData + ") not found",
 				Suggestion: "You can validate your trailers with `git interpret-trailers`",
 			}
 		}
