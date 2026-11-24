@@ -1,10 +1,13 @@
-// SPDX-FileCopyrightText: 2022 UnionTech Software Technology Co., Ltd.
+// SPDX-FileCopyrightText: 2022 - 2026 UnionTech Software Technology Co., Ltd.
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 package main
 
-import "os"
+import (
+	"fmt"
+	"os"
+)
 
 func main() {
 	// client := github.NewClient(nil)
@@ -16,8 +19,12 @@ func main() {
 	// }
 
 	// pull.List
-	checker := CreateChecker()
-	checker.ParseArguments()
+	options := ParseArguments()
+	checker, err := CreateChecker(options)
+	if err != nil {
+		fmt.Println("::error title=Configuration Error::" + err.Error())
+		os.Exit(1)
+	}
 	checker.CheckPrequirements()
 	result := checker.CheckCommits()
 	checker.PrintResult(result)

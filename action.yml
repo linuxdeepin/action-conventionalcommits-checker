@@ -1,4 +1,7 @@
-# action.yml
+# SPDX-FileCopyrightText: 2026 UnionTech Software Technology Co., Ltd.
+#
+# SPDX-License-Identifier: LGPL-3.0-or-later
+
 name: "conventionalcommits-checker"
 author: BLumia
 branding:
@@ -9,6 +12,18 @@ inputs:
   github_token:
     description: "action github token"
     required: false
+  rules:
+    description: "JSON string defining all rules (replaces default rules). See README for the JSON format and available enum values."
+    required: false
+    default: ""
+  extra-rules:
+    description: "JSON string defining extra rules to append to the current rule set (default or custom). See README for the JSON format and available enum values."
+    required: false
+    default: ""
+  rules-file:
+    description: "Path to a JSON file in the repo defining all rules (replaces default rules). Takes priority over `rules`."
+    required: false
+    default: ""
 
 runs:
   using: "composite"
@@ -25,5 +40,25 @@ runs:
       shell: bash
       run: |
         cd $GITHUB_ACTION_PATH
-        go run ./conventionalcommits-checker/ -repo-dir $GITHUB_WORKSPACE -base-sha ${{ github.event.pull_request.base.sha }} -head-sha ${{ github.event.pull_request.head.sha }}
-
+        RULES_ARGS=""
+        EXTRA_RULES_ARGS=""
+        if [ -n "${{ inputs.rules-file }}" ]; then
+          RULES_FILE="${{ inputs.rules-file }}"
+          if [[ "$RULES_FILE" != /* ]]; then
+            RULES_FILE="$GITHUB_WORKSPACE/$RULES_FILE"
+          fi
+          RULES_ARGS="-rules-file $RULES_FILE"
+        elif [ -n "${{ inputs.rules }}" ]; then
+          echo '${{ inputs.rules }}' > /tmp/cc_rules.json
+          RULES_ARGS="-rules-file /tmp/cc_rules.json"
+        fi
+        if [ -n "${{ inputs.extra-rules }}" ]; then
+          echo '${{ inputs.extra-rules }}' > /tmp/cc_extra_rules.json
+          EXTRA_RULES_ARGS="-extra-rules-file /tmp/cc_extra_rules.json"
+        fi
+        go run ./conventionalcommits-checker/ \
+          -repo-dir $GITHUB_WORKSPACE \
+          -base-sha ${{ github.event.pull_request.base.sha }} \
+          -head-sha ${{ github.event.pull_request.head.sha }} \
+          $RULES_ARGS \
+          $EXTRA_RULES_ARGS

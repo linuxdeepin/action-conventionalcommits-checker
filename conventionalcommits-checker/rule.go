@@ -1,6 +1,12 @@
+// SPDX-FileCopyrightText: 2026 UnionTech Software Technology Co., Ltd.
+//
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"regexp"
 	"strings"
 )
@@ -8,9 +14,9 @@ import (
 type RuleType int
 
 const (
-	Rule_AlwaysCheck       RuleType = 1 // all Always checks are required to pass (AND)
-	Rule_FallbackCheck     RuleType = 2 // any single Fallback checks pass won't make check fail (OR)
-	Rule_ConditionialCheck RuleType = 3 // additional check applies if condition matches.
+	Rule_AlwaysCheck        RuleType = 1 // all Always checks are required to pass (AND)
+	Rule_FallbackCheck      RuleType = 2 // any single Fallback checks pass won't make check fail (OR)
+	Rule_ConditionialCheck  RuleType = 3 // additional check applies if condition matches.
 )
 
 type ConditionType int
@@ -110,5 +116,146 @@ func (commitCheckData *CommitCheckData) Check(rule Rule) CheckedCommitMessage {
 
 	return CheckedCommitMessage{
 		Passed: true,
+	}
+}
+
+// RuleConfig is the JSON representation of a Rule, used for deserialization.
+type RuleConfig struct {
+	RuleType      string `json:"rule_type"`
+	CheckType     string `json:"check_type"`
+	ConditionType string `json:"condition_type"`
+	RuleData      string `json:"rule_data"`
+	CheckData     string `json:"check_data"`
+}
+
+func parseRuleType(s string) (RuleType, error) {
+	switch s {
+	case "always_check":
+		return Rule_AlwaysCheck, nil
+	case "conditional_check":
+		return Rule_ConditionialCheck, nil
+	case "fallback_check":
+		return Rule_FallbackCheck, nil
+	default:
+		return 0, fmt.Errorf("invalid rule_type: %q", s)
+	}
+}
+
+func parseCheckType(s string) (CheckType, error) {
+	switch s {
+	case "conventional_commits_base":
+		return Check_ConventionalCommitsBase, nil
+	case "type_in_range":
+		return Check_TypeInRange, nil
+	case "require_scope":
+		return Check_RequireScope, nil
+	case "require_body":
+		return Check_RequireBody, nil
+	case "require_trailers":
+		return Check_RequireTrailers, nil
+	case "allowed_subject_pattern":
+		return Check_AllowedSubjectPattern, nil
+	case "strict_require_trailers":
+		return Check_StrictRequireTrailers, nil
+	default:
+		return 0, fmt.Errorf("invalid check_type: %q", s)
+	}
+}
+
+func parseConditionType(s string) (ConditionType, error) {
+	switch s {
+	case "by_email":
+		return Condition_ByEmail, nil
+	case "by_type":
+		return Condition_ByType, nil
+	default:
+		return 0, fmt.Errorf("invalid condition_type: %q", s)
+	}
+}
+
+// ParseRules deserializes a JSON string into a slice of Rule.
+// It validates enum mappings and pre-compiles regex patterns for
+// allowed_subject_pattern rules to ensure user-provided regexes are valid.
+func ParseRules(jsonStr string) ([]Rule, error) {
+	var configs []RuleConfig
+	if err := json.Unmarshal([]byte(jsonStr), &configs); err != nil {
+		return nil, fmt.Errorf("failed to parse rules JSON: %w", err)
+	}
+
+	rules := make([]Rule, 0, len(configs))
+	for i, cfg := range configs {
+		var rule Rule
+		var err error
+
+		rule.RuleType, err = parseRuleType(cfg.RuleType)
+		if err != nil {
+			return nil, fmt.Errorf("rule #%d: %w", i+1, err)
+		}
+
+		rule.CheckType, err = parseCheckType(cfg.CheckType)
+		if err != nil {
+			return nil, fmt.Errorf("rule #%d: %w", i+1, err)
+		}
+
+		if cfg.ConditionType != "" {
+			rule.ConditionType, err = parseConditionType(cfg.ConditionType)
+			if err != nil {
+				return nil, fmt.Errorf("rule #%d: %w", i+1, err)
+			}
+		}
+
+		rule.RuleData = cfg.RuleData
+		rule.CheckData = cfg.CheckData
+
+		if rule.CheckType == Check_AllowedSubjectPattern && rule.CheckData != "" {
+			if _, err := regexp.Compile(rule.CheckData); err != nil {
+				return nil, fmt.Errorf("rule #%d: invalid regex in check_data: %w", i+1, err)
+			}
+		}
+
+		rules = append(rules, rule)
+	}
+
+	return rules, nil
+}
+
+// DefaultRules returns the built-in 6 predefined rules, matching the
+// behavior of the original hardcoded rules on master.
+func DefaultRules() []Rule {
+	return []Rule{
+		{
+			RuleType:  Rule_AlwaysCheck,
+			CheckType: Check_ConventionalCommitsBase,
+		},
+		{
+			RuleType:  Rule_AlwaysCheck,
+			CheckType: Check_RequireBody,
+		},
+		{
+			RuleType:      Rule_ConditionialCheck,
+			RuleData:      "uniontech.com",
+			ConditionType: Condition_ByEmail,
+			CheckType:     Check_RequireTrailers,
+			CheckData:     "Log",
+		},
+		{
+			RuleType:      Rule_ConditionialCheck,
+			RuleData:      "uniontech.com",
+			ConditionType: Condition_ByEmail,
+			CheckType:     Check_RequireTrailers,
+			CheckData:     "Issue|PMS",
+		},
+		{
+			RuleType:  Rule_FallbackCheck,
+			RuleData:  "Default merge commit caused by workflow sync",
+			CheckType: Check_AllowedSubjectPattern,
+			CheckData: `File Sync from [\w\-\.]+\/[\w\-\.]+ \(#[\d]+\)`,
+		},
+		{
+			RuleType:  Rule_FallbackCheck,
+			RuleData:  "Default GitHub auto merge commit message",
+			CheckType: Check_AllowedSubjectPattern,
+			CheckData: `Merge (?:pull request #[\d]+ from [\w\-\.\/]+|branch '[\w\-\.:\/]+' into [\w\-\/])`,
+		},
 	}
 }

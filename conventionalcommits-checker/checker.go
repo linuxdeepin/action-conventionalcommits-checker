@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 UnionTech Software Technology Co., Ltd.
+//
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 package main
 
 import (
@@ -17,68 +21,53 @@ type Checker struct {
 	Result  Result
 }
 
-func CreateChecker() Checker {
-	checker := Checker{
-		Options: Option{
-			ExcludeBase: false,
-		},
-		Rules: []Rule{
-			{
-				RuleType:  Rule_AlwaysCheck,
-				CheckType: Check_ConventionalCommitsBase,
-			},
-			{
-				RuleType:  Rule_AlwaysCheck,
-				CheckType: Check_RequireBody,
-			},
-			/*{
-				RuleType:      Rule_ConditionialCheck,
-				CheckType:     Check_StrictRequireTrailers,
-				ConditionType: Condition_ByType,
-				CheckData:     "Issue",
-				RuleData:      "fix",
-			},
-			{
-				RuleType:      Rule_ConditionialCheck,
-				CheckType:     Check_StrictRequireTrailers,
-				ConditionType: Condition_ByType,
-				CheckData:     "Issue",
-				RuleData:      "feat",
-			},*/
-			{
-				RuleType:  Rule_ConditionialCheck,
-				RuleData:  "uniontech.com",
-				ConditionType: Condition_ByEmail,
-				CheckType: Check_RequireTrailers,
-				CheckData: "Log",
-			},
-			{
-				RuleType:  Rule_ConditionialCheck,
-				RuleData:  "uniontech.com",
-				ConditionType: Condition_ByEmail,
-				CheckType: Check_RequireTrailers,
-				CheckData: "Issue|PMS",
-			},
-			{
-				RuleType:  Rule_FallbackCheck,
-				RuleData:  "Default merge commit caused by workflow sync",
-				CheckType: Check_AllowedSubjectPattern,
-				// File Sync from originname/branchname (#61)
-				CheckData: `File Sync from [\w\-\.]+\/[\w\-\.]+ \(#[\d]+\)`,
-			},
-			{
-				RuleType:  Rule_FallbackCheck,
-				RuleData:  "Default GitHub auto merge commit message",
-				CheckType: Check_AllowedSubjectPattern,
-				// Merge branch 'originname:branchname' into branchname
-				// Merge pull request #61 from originname/branchname
-				CheckData: `Merge (?:pull request #[\d]+ from [\w\-\.\/]+|branch '[\w\-\.:\/]+' into [\w\-\/])`,
-			},
-		},
-		Result: Result{},
+func CreateChecker(options Option) (Checker, error) {
+	var rules []Rule
+
+	if options.RulesFile != "" {
+		data, err := os.ReadFile(options.RulesFile)
+		if err != nil {
+			return Checker{}, fmt.Errorf("failed to read rules file %q: %w", options.RulesFile, err)
+		}
+		rules, err = ParseRules(string(data))
+		if err != nil {
+			return Checker{}, err
+		}
+	} else if options.Rules != "" {
+		var err error
+		rules, err = ParseRules(options.Rules)
+		if err != nil {
+			return Checker{}, err
+		}
+	} else {
+		rules = DefaultRules()
 	}
 
-	return checker
+	if options.ExtraRulesFile != "" {
+		extraData, err := os.ReadFile(options.ExtraRulesFile)
+		if err != nil {
+			return Checker{}, fmt.Errorf("failed to read extra-rules file %q: %w", options.ExtraRulesFile, err)
+		}
+		extra, err := ParseRules(string(extraData))
+		if err != nil {
+			return Checker{}, fmt.Errorf("failed to parse extra-rules: %w", err)
+		}
+		rules = append(rules, extra...)
+	} else if options.ExtraRules != "" {
+		extra, err := ParseRules(options.ExtraRules)
+		if err != nil {
+			return Checker{}, fmt.Errorf("failed to parse extra-rules: %w", err)
+		}
+		rules = append(rules, extra...)
+	}
+
+	checker := Checker{
+		Options: options,
+		Rules:   rules,
+		Result:  Result{},
+	}
+
+	return checker, nil
 }
 
 func (checker *Checker) LogNoticeln(v ...any) {
@@ -126,21 +115,31 @@ func (checker *Checker) GitCmdOutput(args ...string) string {
 	return string(out)
 }
 
-func (checker *Checker) ParseArguments() {
+func ParseArguments() Option {
 	var flags OptionFlags
 	flags.GitHubLogger = flag.Bool("github-logger", true, "Use GitHub workflow commands log style")
 	flags.ExcludeBase = flag.Bool("exclude-base", true, "Exclude the base commit from checking")
 	flags.BaseSha = flag.String("base-sha", "", "Git commit hash range: start")
 	flags.HeadSha = flag.String("head-sha", "", "Git commit hash range: end")
 	flags.RepoDir = flag.String("repo-dir", "", "Location of the git repo, use the working dir by default")
+	flags.Rules = flag.String("rules", "", "JSON string defining all rules (replaces default rules)")
+	flags.ExtraRules = flag.String("extra-rules", "", "JSON string defining extra rules to append to the rule set")
+	flags.RulesFile = flag.String("rules-file", "", "Path to a JSON file defining all rules (replaces default rules)")
+	flags.ExtraRulesFile = flag.String("extra-rules-file", "", "Path to a JSON file defining extra rules to append")
 
 	flag.Parse()
 
-	checker.Options.GitHubLogger = *flags.GitHubLogger
-	checker.Options.ExcludeBase = *flags.ExcludeBase
-	checker.Options.BaseSha = *flags.BaseSha
-	checker.Options.HeadSha = *flags.HeadSha
-	checker.Options.RepoDir = *flags.RepoDir
+	return Option{
+		GitHubLogger:   *flags.GitHubLogger,
+		ExcludeBase:    *flags.ExcludeBase,
+		BaseSha:        *flags.BaseSha,
+		HeadSha:        *flags.HeadSha,
+		RepoDir:        *flags.RepoDir,
+		Rules:          *flags.Rules,
+		ExtraRules:     *flags.ExtraRules,
+		RulesFile:      *flags.RulesFile,
+		ExtraRulesFile: *flags.ExtraRulesFile,
+	}
 }
 
 func (checker *Checker) CheckPrequirements() {
