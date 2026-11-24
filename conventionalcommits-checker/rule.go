@@ -215,6 +215,10 @@ func ParseRules(jsonStr string) ([]Rule, error) {
 		return nil, fmt.Errorf("failed to parse rules JSON: %w", err)
 	}
 
+	if configs == nil {
+		return nil, fmt.Errorf("rules JSON is null, at least one rule is required")
+	}
+
 	rules := make([]Rule, 0, len(configs))
 	for i, cfg := range configs {
 		var rule Rule
@@ -223,6 +227,15 @@ func ParseRules(jsonStr string) ([]Rule, error) {
 		rule.RuleType, err = parseRuleType(cfg.RuleType)
 		if err != nil {
 			return nil, fmt.Errorf("rule #%d: %w", i+1, err)
+		}
+
+		if rule.RuleType == Rule_ConditionialCheck {
+			if cfg.ConditionType == "" {
+				return nil, fmt.Errorf("rule #%d: conditional_check requires non-empty condition_type", i+1)
+			}
+			if cfg.RuleData == "" {
+				return nil, fmt.Errorf("rule #%d: conditional_check requires non-empty rule_data", i+1)
+			}
 		}
 
 		rule.CheckType, err = parseCheckType(cfg.CheckType)

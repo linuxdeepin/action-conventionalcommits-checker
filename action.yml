@@ -24,6 +24,10 @@ inputs:
     description: "Path to a JSON file in the repo defining all rules (replaces default rules). Takes priority over `rules`."
     required: false
     default: ""
+  extra-rules-file:
+    description: "Path to a JSON file in the repo defining extra rules to append to the current rule set (default or custom)."
+    required: false
+    default: ""
 
 runs:
   using: "composite"
@@ -42,12 +46,16 @@ runs:
         INPUT_RULES_FILE: ${{ inputs.rules-file }}
         INPUT_RULES: ${{ inputs.rules }}
         INPUT_EXTRA_RULES: ${{ inputs.extra-rules }}
+        INPUT_EXTRA_RULES_FILE: ${{ inputs.extra-rules-file }}
         BASE_SHA: ${{ github.event.pull_request.base.sha }}
         HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       run: |
         cd $GITHUB_ACTION_PATH
         RULES_ARGS=()
         EXTRA_RULES_ARGS=()
+        CC_RULES_FILE=$(mktemp /tmp/cc_rules.XXXXXX.json)
+        CC_EXTRA_RULES_FILE=$(mktemp /tmp/cc_extra_rules.XXXXXX.json)
+        trap 'rm -f "$CC_RULES_FILE" "$CC_EXTRA_RULES_FILE"' EXIT
         if [ -n "$INPUT_RULES_FILE" ]; then
           RULES_FILE="$INPUT_RULES_FILE"
           if [[ "$RULES_FILE" != /* ]]; then
@@ -55,12 +63,18 @@ runs:
           fi
           RULES_ARGS=(-rules-file "$RULES_FILE")
         elif [ -n "$INPUT_RULES" ]; then
-          printf '%s' "$INPUT_RULES" > /tmp/cc_rules.json
-          RULES_ARGS=(-rules-file /tmp/cc_rules.json)
+          printf '%s' "$INPUT_RULES" > "$CC_RULES_FILE"
+          RULES_ARGS=(-rules-file "$CC_RULES_FILE")
         fi
-        if [ -n "$INPUT_EXTRA_RULES" ]; then
-          printf '%s' "$INPUT_EXTRA_RULES" > /tmp/cc_extra_rules.json
-          EXTRA_RULES_ARGS=(-extra-rules-file /tmp/cc_extra_rules.json)
+        if [ -n "$INPUT_EXTRA_RULES_FILE" ]; then
+          EXTRA_RULES_FILE="$INPUT_EXTRA_RULES_FILE"
+          if [[ "$EXTRA_RULES_FILE" != /* ]]; then
+            EXTRA_RULES_FILE="$GITHUB_WORKSPACE/$EXTRA_RULES_FILE"
+          fi
+          EXTRA_RULES_ARGS=(-extra-rules-file "$EXTRA_RULES_FILE")
+        elif [ -n "$INPUT_EXTRA_RULES" ]; then
+          printf '%s' "$INPUT_EXTRA_RULES" > "$CC_EXTRA_RULES_FILE"
+          EXTRA_RULES_ARGS=(-extra-rules-file "$CC_EXTRA_RULES_FILE")
         fi
         go run ./conventionalcommits-checker/ \
           -repo-dir "$GITHUB_WORKSPACE" \
