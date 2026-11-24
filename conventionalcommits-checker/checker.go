@@ -17,65 +17,68 @@ type Checker struct {
 	Result  Result
 }
 
-func CreateChecker() Checker {
+func CreateChecker(options Option) Checker {
+	var rules []Rule
+
+	if options.CheckConventionalCommits {
+		rules = append(rules, Rule{
+			RuleType:  Rule_AlwaysCheck,
+			CheckType: Check_ConventionalCommitsBase,
+		})
+	}
+
+	if options.CheckRequireBody {
+		rules = append(rules, Rule{
+			RuleType:  Rule_AlwaysCheck,
+			CheckType: Check_RequireBody,
+		})
+	}
+
+	if options.CheckRequireLogTrailer {
+		rules = append(rules, Rule{
+			RuleType:       Rule_ConditionialCheck,
+			RuleData:       "uniontech.com",
+			ConditionType:  Condition_ByEmail,
+			CheckType:      Check_RequireTrailers,
+			CheckData:      "Log",
+		})
+	}
+
+	if options.CheckRequireIssueTrailer {
+		rules = append(rules, Rule{
+			RuleType:       Rule_ConditionialCheck,
+			RuleData:       "uniontech.com",
+			ConditionType:  Condition_ByEmail,
+			CheckType:      Check_RequireTrailers,
+			CheckData:      "Issue|PMS",
+		})
+	}
+
+	if options.AllowFileSyncCommits {
+		rules = append(rules, Rule{
+			RuleType:  Rule_FallbackCheck,
+			RuleData:  "Default merge commit caused by workflow sync",
+			CheckType: Check_AllowedSubjectPattern,
+			// File Sync from originname/branchname (#61)
+			CheckData: `File Sync from [\w\-\.]+\/[\w\-\.]+ \(#[\d]+\)`,
+		})
+	}
+
+	if options.AllowMergeCommits {
+		rules = append(rules, Rule{
+			RuleType:  Rule_FallbackCheck,
+			RuleData:  "Default GitHub auto merge commit message",
+			CheckType: Check_AllowedSubjectPattern,
+			// Merge branch 'originname:branchname' into branchname
+			// Merge pull request #61 from originname/branchname
+			CheckData: `Merge (?:pull request #[\d]+ from [\w\-\.\/]+|branch '[\w\-\.:\/]+' into [\w\-\/])`,
+		})
+	}
+
 	checker := Checker{
-		Options: Option{
-			ExcludeBase: false,
-		},
-		Rules: []Rule{
-			{
-				RuleType:  Rule_AlwaysCheck,
-				CheckType: Check_ConventionalCommitsBase,
-			},
-			{
-				RuleType:  Rule_AlwaysCheck,
-				CheckType: Check_RequireBody,
-			},
-			/*{
-				RuleType:      Rule_ConditionialCheck,
-				CheckType:     Check_StrictRequireTrailers,
-				ConditionType: Condition_ByType,
-				CheckData:     "Issue",
-				RuleData:      "fix",
-			},
-			{
-				RuleType:      Rule_ConditionialCheck,
-				CheckType:     Check_StrictRequireTrailers,
-				ConditionType: Condition_ByType,
-				CheckData:     "Issue",
-				RuleData:      "feat",
-			},*/
-			{
-				RuleType:  Rule_ConditionialCheck,
-				RuleData:  "uniontech.com",
-				ConditionType: Condition_ByEmail,
-				CheckType: Check_RequireTrailers,
-				CheckData: "Log",
-			},
-			{
-				RuleType:  Rule_ConditionialCheck,
-				RuleData:  "uniontech.com",
-				ConditionType: Condition_ByEmail,
-				CheckType: Check_RequireTrailers,
-				CheckData: "Issue|PMS",
-			},
-			{
-				RuleType:  Rule_FallbackCheck,
-				RuleData:  "Default merge commit caused by workflow sync",
-				CheckType: Check_AllowedSubjectPattern,
-				// File Sync from originname/branchname (#61)
-				CheckData: `File Sync from [\w\-\.]+\/[\w\-\.]+ \(#[\d]+\)`,
-			},
-			{
-				RuleType:  Rule_FallbackCheck,
-				RuleData:  "Default GitHub auto merge commit message",
-				CheckType: Check_AllowedSubjectPattern,
-				// Merge branch 'originname:branchname' into branchname
-				// Merge pull request #61 from originname/branchname
-				CheckData: `Merge (?:pull request #[\d]+ from [\w\-\.\/]+|branch '[\w\-\.:\/]+' into [\w\-\/])`,
-			},
-		},
-		Result: Result{},
+		Options: options,
+		Rules:   rules,
+		Result:  Result{},
 	}
 
 	return checker
@@ -126,21 +129,35 @@ func (checker *Checker) GitCmdOutput(args ...string) string {
 	return string(out)
 }
 
-func (checker *Checker) ParseArguments() {
+func ParseArguments() Option {
 	var flags OptionFlags
 	flags.GitHubLogger = flag.Bool("github-logger", true, "Use GitHub workflow commands log style")
 	flags.ExcludeBase = flag.Bool("exclude-base", true, "Exclude the base commit from checking")
 	flags.BaseSha = flag.String("base-sha", "", "Git commit hash range: start")
 	flags.HeadSha = flag.String("head-sha", "", "Git commit hash range: end")
 	flags.RepoDir = flag.String("repo-dir", "", "Location of the git repo, use the working dir by default")
+	flags.CheckConventionalCommits = flag.Bool("check-conventional-commits", true, "Check conventional commits base format")
+	flags.CheckRequireBody = flag.Bool("check-require-body", true, "Check that commits include a body")
+	flags.CheckRequireLogTrailer = flag.Bool("check-require-log-trailer", true, "Check that uniontech.com commits include a Log trailer")
+	flags.CheckRequireIssueTrailer = flag.Bool("check-require-issue-trailer", true, "Check that uniontech.com commits include an Issue or PMS trailer")
+	flags.AllowFileSyncCommits = flag.Bool("allow-file-sync-commits", true, "Allow file sync merge commits")
+	flags.AllowMergeCommits = flag.Bool("allow-merge-commits", true, "Allow GitHub auto merge commits")
 
 	flag.Parse()
 
-	checker.Options.GitHubLogger = *flags.GitHubLogger
-	checker.Options.ExcludeBase = *flags.ExcludeBase
-	checker.Options.BaseSha = *flags.BaseSha
-	checker.Options.HeadSha = *flags.HeadSha
-	checker.Options.RepoDir = *flags.RepoDir
+	return Option{
+		GitHubLogger:             *flags.GitHubLogger,
+		ExcludeBase:              *flags.ExcludeBase,
+		BaseSha:                  *flags.BaseSha,
+		HeadSha:                  *flags.HeadSha,
+		RepoDir:                  *flags.RepoDir,
+		CheckConventionalCommits: *flags.CheckConventionalCommits,
+		CheckRequireBody:         *flags.CheckRequireBody,
+		CheckRequireLogTrailer:   *flags.CheckRequireLogTrailer,
+		CheckRequireIssueTrailer: *flags.CheckRequireIssueTrailer,
+		AllowFileSyncCommits:     *flags.AllowFileSyncCommits,
+		AllowMergeCommits:        *flags.AllowMergeCommits,
+	}
 }
 
 func (checker *Checker) CheckPrequirements() {

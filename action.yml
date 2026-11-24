@@ -9,6 +9,30 @@ inputs:
   github_token:
     description: "action github token"
     required: false
+  check-conventional-commits:
+    description: "Check conventional commits base format"
+    required: false
+    default: "true"
+  check-require-body:
+    description: "Check that commits include a body"
+    required: false
+    default: "true"
+  check-require-log-trailer:
+    description: "Check that uniontech.com commits include a Log trailer"
+    required: false
+    default: "true"
+  check-require-issue-trailer:
+    description: "Check that uniontech.com commits include an Issue or PMS trailer"
+    required: false
+    default: "true"
+  allow-file-sync-commits:
+    description: "Allow file sync merge commits"
+    required: false
+    default: "true"
+  allow-merge-commits:
+    description: "Allow GitHub auto merge commits"
+    required: false
+    default: "true"
 
 runs:
   using: "composite"
@@ -25,5 +49,13 @@ runs:
       shell: bash
       run: |
         cd $GITHUB_ACTION_PATH
-        go run ./conventionalcommits-checker/ -repo-dir $GITHUB_WORKSPACE -base-sha ${{ github.event.pull_request.base.sha }} -head-sha ${{ github.event.pull_request.head.sha }}
-
+        go run ./conventionalcommits-checker/ \
+          -repo-dir $GITHUB_WORKSPACE \
+          -base-sha ${{ github.event.pull_request.base.sha }} \
+          -head-sha ${{ github.event.pull_request.head.sha }} \
+          -check-conventional-commits=${{ inputs.check-conventional-commits }} \
+          -check-require-body=${{ inputs.check-require-body }} \
+          -check-require-log-trailer=${{ inputs.check-require-log-trailer }} \
+          -check-require-issue-trailer=${{ inputs.check-require-issue-trailer }} \
+          -allow-file-sync-commits=${{ inputs.allow-file-sync-commits }} \
+          -allow-merge-commits=${{ inputs.allow-merge-commits }}
