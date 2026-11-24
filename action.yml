@@ -49,11 +49,15 @@ runs:
           fi
           RULES_ARGS="-rules-file $RULES_FILE"
         elif [ -n "${{ inputs.rules }}" ]; then
-          echo '${{ inputs.rules }}' > /tmp/cc_rules.json
+          cat > /tmp/cc_rules.json <<'CC_RULES_EOF'
+${{ inputs.rules }}
+          CC_RULES_EOF
           RULES_ARGS="-rules-file /tmp/cc_rules.json"
         fi
         if [ -n "${{ inputs.extra-rules }}" ]; then
-          echo '${{ inputs.extra-rules }}' > /tmp/cc_extra_rules.json
+          cat > /tmp/cc_extra_rules.json <<'CC_EXTRA_RULES_EOF'
+${{ inputs.extra-rules }}
+          CC_EXTRA_RULES_EOF
           EXTRA_RULES_ARGS="-extra-rules-file /tmp/cc_extra_rules.json"
         fi
         go run ./conventionalcommits-checker/ \
