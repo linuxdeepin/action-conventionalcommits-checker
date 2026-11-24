@@ -103,6 +103,39 @@ func (commitCheckData *CommitCheckData) Check(rule Rule) CheckedCommitMessage {
 				Suggestion: "You can validate your trailers with `git interpret-trailers`",
 			}
 		}
+	case Check_TypeInRange:
+		allowedTypes := strings.Split(rule.CheckData, "|")
+		for _, t := range allowedTypes {
+			if commitCheckData.SubjectParsed.Type == t {
+				return CheckedCommitMessage{Passed: true}
+			}
+		}
+		return CheckedCommitMessage{
+			Passed:     false,
+			Reason:     "Type not in allowed list: " + rule.CheckData,
+			Suggestion: "Please use one of the allowed types: " + rule.CheckData,
+		}
+	case Check_RequireScope:
+		if commitCheckData.SubjectParsed.Scope == "" {
+			return CheckedCommitMessage{
+				Passed:     false,
+				Reason:     "Scope is required but not provided",
+				Suggestion: "Please add a scope to your commit subject",
+			}
+		}
+		if rule.CheckData != "" {
+			allowedScopes := strings.Split(rule.CheckData, "|")
+			for _, s := range allowedScopes {
+				if commitCheckData.SubjectParsed.Scope == s {
+					return CheckedCommitMessage{Passed: true}
+				}
+			}
+			return CheckedCommitMessage{
+				Passed:     false,
+				Reason:     "Scope not in allowed list: " + rule.CheckData,
+				Suggestion: "Please use one of the allowed scopes: " + rule.CheckData,
+			}
+		}
 	case Check_AllowedSubjectPattern:
 		r := regexp.MustCompile(rule.CheckData)
 		if !r.MatchString(commitCheckData.SubjectRaw) {
@@ -207,7 +240,10 @@ func ParseRules(jsonStr string) ([]Rule, error) {
 		rule.RuleData = cfg.RuleData
 		rule.CheckData = cfg.CheckData
 
-		if rule.CheckType == Check_AllowedSubjectPattern && rule.CheckData != "" {
+		if rule.CheckType == Check_AllowedSubjectPattern {
+			if rule.CheckData == "" {
+				return nil, fmt.Errorf("rule #%d: allowed_subject_pattern requires non-empty check_data", i+1)
+			}
 			if _, err := regexp.Compile(rule.CheckData); err != nil {
 				return nil, fmt.Errorf("rule #%d: invalid regex in check_data: %w", i+1, err)
 			}

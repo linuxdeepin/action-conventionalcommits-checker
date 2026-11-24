@@ -38,31 +38,33 @@ runs:
         go-version: ^1.19
     - name: run commitlint
       shell: bash
+      env:
+        INPUT_RULES_FILE: ${{ inputs.rules-file }}
+        INPUT_RULES: ${{ inputs.rules }}
+        INPUT_EXTRA_RULES: ${{ inputs.extra-rules }}
+        BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       run: |
         cd $GITHUB_ACTION_PATH
-        RULES_ARGS=""
-        EXTRA_RULES_ARGS=""
-        if [ -n "${{ inputs.rules-file }}" ]; then
-          RULES_FILE="${{ inputs.rules-file }}"
+        RULES_ARGS=()
+        EXTRA_RULES_ARGS=()
+        if [ -n "$INPUT_RULES_FILE" ]; then
+          RULES_FILE="$INPUT_RULES_FILE"
           if [[ "$RULES_FILE" != /* ]]; then
             RULES_FILE="$GITHUB_WORKSPACE/$RULES_FILE"
           fi
-          RULES_ARGS="-rules-file $RULES_FILE"
-        elif [ -n "${{ inputs.rules }}" ]; then
-          cat > /tmp/cc_rules.json <<'CC_RULES_EOF'
-${{ inputs.rules }}
-          CC_RULES_EOF
-          RULES_ARGS="-rules-file /tmp/cc_rules.json"
+          RULES_ARGS=(-rules-file "$RULES_FILE")
+        elif [ -n "$INPUT_RULES" ]; then
+          printf '%s' "$INPUT_RULES" > /tmp/cc_rules.json
+          RULES_ARGS=(-rules-file /tmp/cc_rules.json)
         fi
-        if [ -n "${{ inputs.extra-rules }}" ]; then
-          cat > /tmp/cc_extra_rules.json <<'CC_EXTRA_RULES_EOF'
-${{ inputs.extra-rules }}
-          CC_EXTRA_RULES_EOF
-          EXTRA_RULES_ARGS="-extra-rules-file /tmp/cc_extra_rules.json"
+        if [ -n "$INPUT_EXTRA_RULES" ]; then
+          printf '%s' "$INPUT_EXTRA_RULES" > /tmp/cc_extra_rules.json
+          EXTRA_RULES_ARGS=(-extra-rules-file /tmp/cc_extra_rules.json)
         fi
         go run ./conventionalcommits-checker/ \
-          -repo-dir $GITHUB_WORKSPACE \
-          -base-sha ${{ github.event.pull_request.base.sha }} \
-          -head-sha ${{ github.event.pull_request.head.sha }} \
-          $RULES_ARGS \
-          $EXTRA_RULES_ARGS
+          -repo-dir "$GITHUB_WORKSPACE" \
+          -base-sha "$BASE_SHA" \
+          -head-sha "$HEAD_SHA" \
+          "${RULES_ARGS[@]}" \
+          "${EXTRA_RULES_ARGS[@]}"

@@ -269,7 +269,7 @@ func (checker *Checker) checkSingleCommit(commitSha string) CheckedCommitMessage
 		}
 	}
 
-	if allRequiredCheckPassed {
+	if allRequiredCheckPassed && requiredRules.Len() > 0 {
 		return CheckedCommitMessage{
 			SHA:        commitSha,
 			Passed:     allRequiredCheckPassed,
